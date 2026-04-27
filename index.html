@@ -12,7 +12,6 @@
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
         // --- 請將下方的配置替換為你在 Firebase Console 獲得的真實資料 ---
-        // 獲取路徑：專案設定 -> 一般 -> 您的應用程式 -> SDK 設定和配置
         const firebaseConfig = {
   apiKey: "AIzaSyBGQYGg1vet5xNc81xV-vLz3e6TBaPVPa0",
   authDomain: "jobportal123-25cae.firebaseapp.com",
@@ -41,7 +40,8 @@
                 userInfo.classList.remove('hidden');
                 userName.innerText = user.displayName;
                 employerZone.classList.remove('hidden');
-                console.log("登入成功:", user.email);
+                renderJobs(); // 登入後渲染職位管理
+                renderApplicants(); // 渲染應徵者
             } else {
                 loginBtn.classList.remove('hidden');
                 userInfo.classList.add('hidden');
@@ -56,7 +56,6 @@
                 document.getElementById('login-modal').classList.add('hidden');
             } catch (error) {
                 console.error("登入失敗:", error);
-                // 這裡避免使用 alert，使用 console 紀錄錯誤
             }
         };
 
@@ -64,57 +63,221 @@
     </script>
 
     <style>
-        .job-card { transition: all 0.3s ease; }
-        .job-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.05); }
-        .modal-overlay { background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); }
+        .job-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .job-card:hover { transform: translateY(-5px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
+        .modal-overlay { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(8px); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fadeIn { animation: fadeIn 0.4s ease-out forwards; }
     </style>
 </head>
-<body class="bg-slate-50 min-h-screen text-slate-900">
+<body class="bg-slate-50 min-h-screen font-sans text-slate-900">
 
-    <nav class="bg-white shadow-sm px-6 py-4 sticky top-0 z-50 flex justify-between items-center">
-        <h1 class="text-2xl font-black text-blue-600">JobPortal</h1>
+    <!-- 導覽列 -->
+    <nav class="bg-white/80 backdrop-blur-md shadow-sm px-6 py-4 sticky top-0 z-50 flex justify-between items-center border-b border-slate-100">
+        <div class="flex items-center gap-8">
+            <h1 class="text-2xl font-black text-blue-600 tracking-tight">JobPortal</h1>
+        </div>
         <div id="auth-section">
-            <button onclick="document.getElementById('login-modal').classList.remove('hidden')" id="login-btn" class="bg-slate-900 text-white px-6 py-2 rounded-full font-bold text-sm">
-                僱主登入
+            <button onclick="document.getElementById('login-modal').classList.remove('hidden')" id="login-btn" class="bg-slate-900 text-white px-6 py-2 rounded-full hover:bg-blue-600 transition font-bold text-sm">
+                僱主專區
             </button>
             <div id="user-info" class="hidden flex items-center gap-4">
-                <span id="user-name" class="text-sm font-bold"></span>
-                <button onclick="handleLogout()" class="text-xs text-red-500 font-bold">登出</button>
+                <div class="flex flex-col items-end">
+                    <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">已登入</span>
+                    <span id="user-name" class="text-sm font-bold text-slate-800"></span>
+                </div>
+                <button onclick="handleLogout()" class="p-2 hover:bg-red-50 rounded-full group transition">
+                    <svg class="w-5 h-5 text-slate-400 group-hover:text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                </button>
             </div>
         </div>
     </nav>
 
-    <header class="bg-slate-900 py-20 text-center text-white">
-        <h2 class="text-4xl font-black mb-4">尋找您的理想職位</h2>
-        <p class="text-slate-400">連動 Google 帳戶，開啟企業招募權限</p>
+    <!-- 橫幅 Hero Section -->
+    <header class="bg-slate-900 py-20 px-6 text-center text-white">
+        <h2 class="text-4xl md:text-5xl font-black mb-6 leading-tight">尋找下一個職場舞台</h2>
+        <p class="text-slate-400 text-lg max-w-2xl mx-auto mb-8 font-medium">
+            專為專業人才打造的招聘平台。連動 Google 帳戶，開啟企業招募權限。
+        </p>
     </header>
 
-    <main class="max-w-4xl mx-auto p-6 -mt-10">
-        <div id="employer-zone" class="hidden bg-white p-8 rounded-3xl shadow-xl border-2 border-blue-100 mb-10">
-            <h2 class="text-2xl font-black text-blue-600 mb-4">管理後台</h2>
-            <p class="text-slate-500">您現在可以管理職位發佈。歡迎回來！</p>
-        </div>
+    <main class="max-w-6xl mx-auto p-6 -mt-10 relative z-20">
+        
+        <!-- 訪客看到的職位列表 -->
+        <section class="mb-16">
+            <div class="flex justify-between items-center mb-8 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+                <h3 class="text-xl font-black text-slate-800 flex items-center gap-2">最新招聘</h3>
+                <div class="text-sm font-bold text-slate-400 uppercase tracking-tighter">Live Updates</div>
+            </div>
+            
+            <div id="visitor-job-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- 預設職位 -->
+                <div class="job-card bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
+                    <h3 class="font-black text-xl text-slate-800 mb-1">資深軟體工程師</h3>
+                    <p class="text-blue-600 text-sm font-bold mb-4">未來科技集團</p>
+                    <button onclick="openApplyModal('資深軟體工程師')" class="w-full py-4 bg-slate-900 text-white rounded-2xl font-black hover:bg-blue-600 transition">立即應徵</button>
+                </div>
+            </div>
+        </section>
 
-        <div class="grid gap-6">
-            <div class="job-card bg-white p-6 rounded-2xl border border-slate-100">
-                <h3 class="text-xl font-bold">資深設計師</h3>
-                <p class="text-blue-600 mb-4">創意工作室</p>
-                <button class="bg-slate-100 px-6 py-2 rounded-xl font-bold text-sm">查看詳情</button>
+        <!-- 僱主管理區域 (登入後顯示) -->
+        <div id="employer-zone" class="hidden space-y-10 border-t-2 border-slate-200 border-dashed pt-16 animate-fadeIn pb-20">
+            <div class="bg-blue-600 rounded-3xl p-8 text-white flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-2xl">
+                <div>
+                    <h2 class="text-3xl font-black">僱主控制台</h2>
+                    <p class="text-blue-100 font-medium">歡迎回來，管理您的職位發布與應徵進度</p>
+                </div>
+                <button onclick="togglePostForm()" class="bg-white text-blue-600 px-8 py-4 rounded-2xl font-black hover:bg-slate-100 transition">
+                    發布新職位
+                </button>
+            </div>
+            
+            <!-- 發布表單 -->
+            <section id="post-form" class="hidden bg-white p-10 rounded-3xl shadow-xl border border-slate-100">
+                <h3 class="text-xl font-black mb-8">職位資訊設定</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <input type="text" id="job-title" placeholder="職位名稱" class="w-full border-2 border-slate-50 p-4 rounded-2xl outline-none focus:border-blue-500 bg-slate-50 transition">
+                    <input type="text" id="job-company" placeholder="公司名稱" class="w-full border-2 border-slate-50 p-4 rounded-2xl outline-none focus:border-blue-500 bg-slate-50 transition">
+                    <input type="text" id="job-salary" placeholder="薪資 (如: 30K - 45K)" class="w-full border-2 border-slate-50 p-4 rounded-2xl outline-none focus:border-blue-500 bg-slate-50 transition">
+                    <input type="text" id="job-location" placeholder="工作地區" class="w-full border-2 border-slate-50 p-4 rounded-2xl outline-none focus:border-blue-500 bg-slate-50 transition">
+                    <button onclick="postJob()" class="bg-blue-600 text-white py-5 rounded-2xl font-black hover:bg-blue-700 transition md:col-span-2">
+                        發布職位
+                    </button>
+                </div>
+            </section>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                <!-- 職位管理列表 -->
+                <div class="lg:col-span-2 space-y-6">
+                    <h3 class="font-black text-slate-800 text-lg">您的發布</h3>
+                    <div id="employer-job-list" class="grid gap-4"></div>
+                </div>
+                <!-- 應徵者列表 -->
+                <div class="space-y-6">
+                    <h3 class="font-black text-slate-800 text-lg">最新應徵者</h3>
+                    <div id="applicant-list" class="space-y-4"></div>
+                </div>
             </div>
         </div>
     </main>
 
     <!-- 登入彈窗 -->
-    <div id="login-modal" class="fixed inset-0 modal-overlay z-[100] hidden flex items-center justify-center">
-        <div class="bg-white p-10 rounded-[40px] shadow-2xl max-w-sm w-full text-center">
-            <h3 class="text-2xl font-black mb-6">歡迎回來</h3>
-            <button onclick="handleGoogleLogin()" class="w-full flex items-center justify-center gap-3 border-2 border-slate-100 py-4 rounded-2xl hover:bg-slate-50 transition font-bold">
-                <img src="https://www.google.com/favicon.ico" class="w-5 h-5">
-                使用 Google 登入
+    <div id="login-modal" class="fixed inset-0 modal-overlay z-[100] hidden flex items-center justify-center p-6">
+        <div class="bg-white rounded-[40px] p-10 max-w-md w-full shadow-2xl relative animate-fadeIn text-center">
+            <button onclick="document.getElementById('login-modal').classList.add('hidden')" class="absolute top-8 right-8 text-slate-300 hover:text-slate-900 transition text-2xl font-light">&times;</button>
+            <h3 class="text-3xl font-black mb-6">僱主登入</h3>
+            <button onclick="handleGoogleLogin()" class="w-full flex items-center justify-center gap-4 bg-slate-50 border-2 border-slate-100 py-4 rounded-2xl hover:bg-blue-50 transition font-black">
+                <img src="https://www.google.com/favicon.ico" class="w-6 h-6">
+                <span>使用 Google 登入</span>
             </button>
-            <button onclick="document.getElementById('login-modal').classList.add('hidden')" class="mt-4 text-slate-400 text-sm">取消</button>
         </div>
     </div>
 
+    <!-- 應徵彈窗 -->
+    <div id="apply-modal" class="fixed inset-0 modal-overlay z-[100] hidden flex items-center justify-center p-6">
+        <div class="bg-white rounded-[40px] p-10 max-w-md w-full shadow-2xl animate-fadeIn">
+            <h3 class="text-2xl font-black mb-1">提交申請</h3>
+            <p id="apply-job-title" class="text-blue-600 font-bold mb-6"></p>
+            <div class="space-y-4">
+                <input type="text" id="app-name" placeholder="姓名" class="w-full bg-slate-50 p-4 rounded-2xl outline-none focus:border-blue-500 border-2 border-transparent transition">
+                <input type="tel" id="app-phone" placeholder="電話" class="w-full bg-slate-50 p-4 rounded-2xl outline-none focus:border-blue-500 border-2 border-transparent transition">
+                <button onclick="submitApplication()" class="w-full py-4 bg-blue-600 text-white rounded-2xl font-black hover:bg-blue-700 transition">確認提交</button>
+                <button onclick="document.getElementById('apply-modal').classList.add('hidden')" class="w-full py-4 text-slate-400 font-bold">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let jobs = [];
+        let applicants = [
+            { id: 1, name: "陳大文", phone: "91234567", job: "資深軟體工程師", time: "10 分鐘前" }
+        ];
+
+        function togglePostForm() { document.getElementById('post-form').classList.toggle('hidden'); }
+        
+        function openApplyModal(title) {
+            document.getElementById('apply-job-title').innerText = title;
+            document.getElementById('apply-modal').classList.remove('hidden');
+        }
+
+        function postJob() {
+            const title = document.getElementById('job-title').value;
+            const company = document.getElementById('job-company').value;
+            const salary = document.getElementById('job-salary').value;
+            const location = document.getElementById('job-location').value;
+
+            if (!title || !company) return;
+
+            const newJob = { id: Date.now(), title, company, salary, location };
+            jobs.unshift(newJob);
+            renderJobs();
+            togglePostForm();
+        }
+
+        function submitApplication() {
+            const name = document.getElementById('app-name').value;
+            const phone = document.getElementById('app-phone').value;
+            if(!name || !phone) return;
+
+            const newApp = { 
+                id: Date.now(), 
+                name, 
+                phone, 
+                job: document.getElementById('apply-job-title').innerText, 
+                time: "剛剛" 
+            };
+            applicants.unshift(newApp);
+            renderApplicants();
+            document.getElementById('apply-modal').classList.add('hidden');
+        }
+
+        function renderJobs() {
+            const visitorList = document.getElementById('visitor-job-list');
+            const employerList = document.getElementById('employer-job-list');
+            
+            const html = jobs.map(job => `
+                <div class="job-card bg-white p-8 rounded-3xl border border-slate-100 shadow-sm animate-fadeIn">
+                    <h3 class="font-black text-xl text-slate-800 mb-1">${job.title}</h3>
+                    <p class="text-blue-600 text-sm font-bold mb-4">${job.company}</p>
+                    <div class="text-xs text-slate-400 mb-6 font-bold uppercase tracking-widest">${job.location} | ${job.salary}</div>
+                    <button onclick="openApplyModal('${job.title}')" class="w-full py-4 bg-blue-600 text-white rounded-2xl font-black hover:bg-blue-700 transition">立即應徵</button>
+                </div>
+            `).join('');
+
+            if(jobs.length > 0) {
+                visitorList.innerHTML = html + `
+                    <div class="job-card bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
+                        <h3 class="font-black text-xl text-slate-800 mb-1">資深軟體工程師</h3>
+                        <p class="text-blue-600 text-sm font-bold mb-4">未來科技集團</p>
+                        <button onclick="openApplyModal('資深軟體工程師')" class="w-full py-4 bg-slate-900 text-white rounded-2xl font-black hover:bg-blue-600 transition">立即應徵</button>
+                    </div>
+                `;
+
+                employerList.innerHTML = jobs.map(job => `
+                    <div class="bg-white p-6 rounded-3xl border border-slate-100 flex justify-between items-center shadow-sm">
+                        <div>
+                            <h4 class="font-black text-slate-800">${job.title}</h4>
+                            <p class="text-xs font-bold text-slate-400">${job.company} • ${job.location}</p>
+                        </div>
+                        <span class="text-emerald-500 font-black text-xs">正在招募</span>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function renderApplicants() {
+            const list = document.getElementById('applicant-list');
+            list.innerHTML = applicants.map(a => `
+                <div class="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm animate-fadeIn">
+                    <div class="flex justify-between mb-2">
+                        <span class="font-black text-slate-800">${a.name}</span>
+                        <span class="text-[10px] font-black text-slate-300 uppercase">${a.time}</span>
+                    </div>
+                    <div class="text-[10px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full w-fit mb-4">應徵：${a.job}</div>
+                    <div class="text-sm font-bold text-slate-500">📞 ${a.phone}</div>
+                </div>
+            `).join('');
+        }
+    </script>
 </body>
 </html>
