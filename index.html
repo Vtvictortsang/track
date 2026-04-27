@@ -3,14 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>卓越求職網 - 廣告與權限管理中心</title>
+    <title>卓越求職網 - 廣告與智能搜尋</title>
     <script src="https://cdn.tailwindcss.com"></script>
     
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-
-       const firebaseConfig = {
+        // Firebase 配置佔位 (目前為 Demo 模式)
+        const firebaseConfig = {
   apiKey: "AIzaSyBGQYGg1vet5xNc81xV-vLz3e6TBaPVPa0",
   authDomain: "jobportal123-25cae.firebaseapp.com",
   projectId: "jobportal123-25cae",
@@ -21,38 +19,11 @@
 };
         const ADMIN_EMAIL = "vt.victortsang@gmail.com"; 
         
-        let auth = null;
         window.currentUser = null;
         window.isAdmin = false;
 
-        const isFirebaseEnabled = firebaseConfig.apiKey && firebaseConfig.apiKey !== "";
-
-        if (isFirebaseEnabled) {
-            try {
-                const app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                const provider = new GoogleAuthProvider();
-
-                onAuthStateChanged(auth, (user) => {
-                    window.currentUser = user;
-                    window.isAdmin = user && user.email === ADMIN_EMAIL;
-                    updateAuthUI(user);
-                });
-
-                window.handleGoogleLogin = async () => {
-                    try {
-                        const result = await signInWithPopup(auth, provider);
-                        window.currentUser = result.user;
-                        window.isAdmin = result.user.email === ADMIN_EMAIL;
-                        document.getElementById('login-modal').classList.add('hidden');
-                    } catch (error) { console.error("登入失敗:", error); }
-                };
-
-                window.handleLogout = () => signOut(auth);
-            } catch (e) { setupDemoMode(); }
-        } else { setupDemoMode(); }
-
-        function setupDemoMode() {
+        // 初始化模擬登入邏輯
+        window.setupDemoMode = () => {
             window.handleGoogleLogin = (role) => {
                 if (role === 'admin') {
                     window.currentUser = { uid: "admin_001", displayName: "系統管理員", email: ADMIN_EMAIL };
@@ -64,12 +35,15 @@
                 updateAuthUI(window.currentUser);
                 document.getElementById('login-modal').classList.add('hidden');
             };
+
             window.handleLogout = () => {
                 window.currentUser = null;
                 window.isAdmin = false;
                 updateAuthUI(null);
             };
-            setTimeout(() => updateAuthUI(null), 100);
+            
+            // 初始執行
+            updateAuthUI(null);
         }
 
         function updateAuthUI(user) {
@@ -97,25 +71,37 @@
                 if (employerZone) employerZone.classList.add('hidden');
                 if (adminBadge) adminBadge.classList.add('hidden');
                 if (adminAdPanel) adminAdPanel.classList.add('hidden');
+                renderJobs(); 
             }
         }
+        
+        window.onload = () => {
+            window.setupDemoMode();
+            renderJobs();
+            renderAdBanner();
+        };
     </script>
 
     <style>
         .job-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        .job-card:hover { transform: translateY(-5px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
-        .job-card.pinned { border: 2px solid #fbbf24; background: linear-gradient(to bottom right, #fff, #fffbeb); }
+        .job-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .job-card.pinned { border: 1.5px solid #fbbf24; background: #fffbeb; }
         .modal-overlay { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(8px); }
         .ad-slide { display: none; }
         .ad-slide.active { display: block; animation: slideIn 0.5s ease-out; }
         @keyframes slideIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+        
+        .sidebar-btn { width: 100%; text-align: left; padding: 0.5rem 1rem; border-radius: 0.75rem; font-size: 0.875rem; font-weight: 700; transition: all 0.2s; display: flex; align-items: center; justify-content: space-between; }
+        .sidebar-btn.active { background-color: #2563eb; color: white; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2); }
+        .sidebar-btn:not(.active) { color: #64748b; }
+        .sidebar-btn:not(.active):hover { background-color: #f1f5f9; }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen font-sans text-slate-900">
 
     <nav class="bg-white/80 backdrop-blur-md shadow-sm px-6 py-4 sticky top-0 z-50 flex justify-between items-center border-b border-slate-100">
         <div class="flex items-center gap-8">
-            <h1 class="text-2xl font-black text-blue-600 tracking-tight">JobPortal</h1>
+            <h1 class="text-2xl font-black text-blue-600 tracking-tight cursor-pointer" onclick="resetFilters()">JobPortal</h1>
             <span id="admin-badge" class="hidden bg-amber-100 text-amber-700 text-[10px] px-3 py-1 rounded-full font-black uppercase tracking-widest border border-amber-200">系統管理員</span>
         </div>
         <div id="auth-section">
@@ -124,124 +110,144 @@
                 <div class="flex flex-col items-end">
                     <span id="user-name" class="text-sm font-bold text-slate-800"></span>
                 </div>
-                <button onclick="handleLogout()" class="p-2 hover:bg-red-50 rounded-full transition text-slate-400"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg></button>
+                <button onclick="handleLogout()" class="p-2 hover:bg-red-50 rounded-full transition text-slate-400">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                </button>
             </div>
         </div>
     </nav>
 
-    <main class="max-w-6xl mx-auto p-6 mt-6">
+    <main class="max-w-[1440px] mx-auto p-6 mt-6">
         
         <!-- 頂部廣告位 (輪播) -->
-        <section id="ad-banner" class="mb-12 relative h-48 md:h-64 rounded-[40px] overflow-hidden bg-slate-200 shadow-lg hidden">
+        <section id="ad-banner" class="mb-12 relative h-32 md:h-48 rounded-[30px] overflow-hidden bg-slate-200 shadow-sm hidden">
             <div id="ad-container" class="w-full h-full"></div>
-            <div id="ad-dots" class="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2"></div>
+            <div id="ad-dots" class="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5"></div>
         </section>
 
-        <!-- 訪客視圖：所有人可見 -->
-        <section class="mb-16">
-            <div class="flex justify-between items-center mb-8 bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-                <h3 class="text-xl font-black text-slate-800 tracking-tight">最新招聘職位</h3>
-                <span class="text-xs text-slate-400 font-bold">目前共有 <span id="job-count">0</span> 個職位</span>
-            </div>
-            <div id="visitor-job-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
-        </section>
-
-        <!-- 僱主/管理員私有區域 -->
-        <div id="employer-zone" class="hidden space-y-10 border-t-2 border-slate-200 border-dashed pt-16 pb-20">
+        <div class="flex flex-col lg:flex-row gap-8">
             
-            <!-- 管理員廣告管理區塊 -->
-            <section id="admin-ad-panel" class="hidden bg-amber-50 p-8 rounded-[40px] border-2 border-amber-100">
-                <div class="flex justify-between items-center mb-6">
-                    <div>
-                        <h3 class="text-xl font-black text-amber-800">廣告輪播管理</h3>
-                        <p class="text-xs text-amber-600 font-bold">上限 5 個項目，顯示在職位列表上方</p>
+            <!-- 左側搜尋篩選欄 -->
+            <aside class="lg:w-64 flex-shrink-0 space-y-8">
+                <div class="bg-white p-6 rounded-[32px] shadow-sm border border-slate-100">
+                    <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">工作類型</h4>
+                    <div class="space-y-1">
+                        <button onclick="setFilter('type', 'all')" id="filter-type-all" class="sidebar-btn active">全部</button>
+                        <button onclick="setFilter('type', '全職')" id="filter-type-全職" class="sidebar-btn">全職</button>
+                        <button onclick="setFilter('type', '兼職')" id="filter-type-兼職" class="sidebar-btn">兼職</button>
                     </div>
-                    <button onclick="openAdForm()" id="add-ad-btn" class="bg-amber-600 text-white px-6 py-2 rounded-2xl font-bold hover:bg-amber-700 transition shadow-md">新增廣告項目</button>
-                </div>
-                
-                <div id="ad-form" class="hidden bg-white p-6 rounded-3xl shadow-inner border border-amber-200 mb-8 space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="space-y-2">
-                            <label class="text-xs font-black text-slate-400 uppercase ml-2">廣告圖片 (建議 1200x400)</label>
-                            <input type="file" id="ad-img-input" accept="image/*" class="w-full text-xs" onchange="previewAdImage(this)">
-                            <div id="ad-preview-box" class="h-24 bg-slate-100 rounded-xl mt-2 overflow-hidden hidden">
-                                <img id="ad-preview-img" src="" class="w-full h-full object-cover">
-                            </div>
-                        </div>
-                        <div class="space-y-2">
-                            <label class="text-xs font-black text-slate-400 uppercase ml-2">跳轉連結 (URL)</label>
-                            <input type="text" id="ad-link" placeholder="https://..." class="w-full bg-slate-50 p-3 rounded-xl border border-slate-100 outline-none focus:border-amber-400">
-                            <div class="flex gap-2 pt-2">
-                                <button onclick="saveAd()" class="flex-grow bg-amber-600 text-white py-3 rounded-xl font-bold">確認保存</button>
-                                <button onclick="closeAdForm()" class="px-4 bg-slate-100 text-slate-400 rounded-xl font-bold">取消</button>
-                            </div>
-                        </div>
+
+                    <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest mt-8 mb-4">職業種類</h4>
+                    <div class="space-y-1">
+                        <button onclick="setFilter('category', 'all')" id="filter-cat-all" class="sidebar-btn active">所有種類</button>
+                        <button onclick="setFilter('category', '行政')" id="filter-cat-行政" class="sidebar-btn">行政管理</button>
+                        <button onclick="setFilter('category', '技術')" id="filter-cat-技術" class="sidebar-btn">資訊技術</button>
+                        <button onclick="setFilter('category', '銷售')" id="filter-cat-銷售" class="sidebar-btn">銷售業務</button>
+                        <button onclick="setFilter('category', '設計')" id="filter-cat-設計" class="sidebar-btn">設計美工</button>
+                        <button onclick="setFilter('category', '服務')" id="filter-cat-服務" class="sidebar-btn">客戶服務</button>
                     </div>
                 </div>
 
-                <div id="ad-admin-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <!-- 廣告管理卡片 -->
-                </div>
-            </section>
+                <!-- 廣告管理 (僅管理員可見) -->
+                <section id="admin-ad-panel" class="hidden bg-amber-50 p-6 rounded-[32px] border-2 border-amber-100">
+                    <h3 class="text-sm font-black text-amber-800 mb-4">廣告輪播 (Max 5)</h3>
+                    <button onclick="openAdForm()" id="add-ad-btn" class="w-full bg-amber-600 text-white py-2 rounded-xl text-xs font-bold hover:bg-amber-700 transition">新增廣告</button>
+                    <div id="ad-admin-list" class="mt-4 space-y-3"></div>
+                </section>
+            </aside>
 
-            <div class="bg-slate-900 rounded-[40px] p-8 text-white flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-2xl">
-                <div>
-                    <h2 class="text-3xl font-black">工作管理台</h2>
-                    <p class="text-slate-400 font-medium">管理職位發布與應徵申請</p>
-                </div>
-                <button onclick="togglePostForm()" class="bg-blue-600 text-white px-10 py-4 rounded-3xl font-black hover:bg-blue-700 transition shadow-xl">發布新職位</button>
-            </div>
-            
-            <section id="post-form" class="hidden bg-white p-10 rounded-[40px] shadow-xl border border-slate-100">
-                <h3 id="form-title" class="text-xl font-black mb-8 text-slate-800">職位發布詳細資料</h3>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    <div class="space-y-4">
-                        <div onclick="document.getElementById('job-logo-input').click()" class="border-2 border-dashed border-slate-200 rounded-3xl h-48 flex flex-col items-center justify-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition overflow-hidden bg-slate-50">
-                            <img id="logo-preview-img" src="" class="hidden w-full h-full object-cover">
-                            <div id="logo-placeholder" class="text-center p-4 text-slate-300">
-                                <svg class="w-10 h-10 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-width="2"></path></svg>
-                                <span class="text-xs font-bold uppercase">上傳公司 Logo</span>
-                            </div>
+            <!-- 右側職位展示 -->
+            <div class="flex-grow">
+                <section class="mb-16">
+                    <div class="flex justify-between items-center mb-6 bg-white px-6 py-4 rounded-2xl shadow-sm border border-slate-100">
+                        <h3 class="text-lg font-black text-slate-800 tracking-tight">最新招聘職位</h3>
+                        <span class="text-[10px] text-slate-400 font-bold uppercase">共 <span id="job-count">0</span> 項搜尋結果</span>
+                    </div>
+                    
+                    <div id="visitor-job-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
+                        <!-- 職位內容動態生成 -->
+                    </div>
+                </section>
+
+                <!-- 僱主管理區域 -->
+                <div id="employer-zone" class="hidden space-y-8 pt-10 border-t-2 border-slate-200 border-dashed">
+                    <div class="bg-slate-900 rounded-[32px] p-6 text-white flex justify-between items-center shadow-xl">
+                        <div>
+                            <h2 class="text-xl font-black">管理中心</h2>
+                            <p class="text-xs text-slate-400">發布職位與應徵管理</p>
                         </div>
-                        <input type="file" id="job-logo-input" accept="image/*" class="hidden" onchange="previewLogo(this)">
+                        <button onclick="togglePostForm()" class="bg-blue-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-blue-700 transition">發布新職位</button>
                     </div>
-                    <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <input type="hidden" id="edit-job-id">
-                        <input type="text" id="job-title" placeholder="職位名稱" class="bg-slate-50 p-4 rounded-2xl border-2 border-transparent focus:border-blue-500 outline-none">
-                        <input type="text" id="job-company" placeholder="公司名稱" class="bg-slate-50 p-4 rounded-2xl border-2 border-transparent focus:border-blue-500 outline-none">
-                        <input type="text" id="job-salary" placeholder="薪資 (例: 25k-30k)" class="bg-slate-50 p-4 rounded-2xl border-2 border-transparent focus:border-blue-500 outline-none">
-                        <input type="text" id="job-location" placeholder="地點" class="bg-slate-50 p-4 rounded-2xl border-2 border-transparent focus:border-blue-500 outline-none">
-                        <textarea id="job-desc" placeholder="職位詳細描述..." class="bg-slate-50 p-4 rounded-2xl border-2 border-transparent focus:border-blue-500 min-h-[150px] md:col-span-2 outline-none"></textarea>
-                        <button onclick="saveJob()" class="bg-blue-600 text-white py-4 rounded-2xl font-black hover:bg-blue-700 transition md:col-span-2">確認發布</button>
-                    </div>
-                </div>
-            </section>
 
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
-                <div class="lg:col-span-2 space-y-6">
-                    <h3 class="font-black text-slate-800 text-lg flex items-center gap-2">我的招聘列表 <span class="text-xs bg-white border border-slate-200 text-slate-400 px-3 py-1 rounded-full" id="my-job-count">0</span></h3>
-                    <div id="employer-job-list" class="space-y-4"></div>
-                </div>
-                <div class="space-y-6">
-                    <h3 class="font-black text-slate-800 text-lg">應徵者管理</h3>
-                    <div id="applicant-list" class="space-y-4"></div>
+                    <!-- 職位發布 Form -->
+                    <section id="post-form" class="hidden bg-white p-8 rounded-[32px] shadow-lg border border-slate-100">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                            <input type="hidden" id="edit-job-id">
+                            <input type="text" id="job-title" placeholder="職位名稱" class="bg-slate-50 p-3 rounded-xl border border-transparent focus:border-blue-500 outline-none text-sm">
+                            <input type="text" id="job-company" placeholder="公司名稱" class="bg-slate-50 p-3 rounded-xl border border-transparent focus:border-blue-500 outline-none text-sm">
+                            <select id="job-type" class="bg-slate-50 p-3 rounded-xl border border-transparent focus:border-blue-500 outline-none text-sm">
+                                <option value="全職">全職</option>
+                                <option value="兼職">兼職</option>
+                            </select>
+                            <select id="job-cat" class="bg-slate-50 p-3 rounded-xl border border-transparent focus:border-blue-500 outline-none text-sm">
+                                <option value="行政">行政管理</option>
+                                <option value="技術">資訊技術</option>
+                                <option value="銷售">銷售業務</option>
+                                <option value="設計">設計美工</option>
+                                <option value="服務">客戶服務</option>
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                             <input type="text" id="job-salary" placeholder="薪資" class="bg-slate-50 p-3 rounded-xl border border-transparent focus:border-blue-500 outline-none text-sm">
+                             <input type="text" id="job-location" placeholder="地點" class="bg-slate-50 p-3 rounded-xl border border-transparent focus:border-blue-500 outline-none text-sm">
+                             <input type="file" id="job-logo-input" accept="image/*" class="bg-slate-50 p-2 rounded-xl text-xs" onchange="previewLogo(this)">
+                        </div>
+                        <textarea id="job-desc" placeholder="職位詳細描述..." class="w-full bg-slate-50 p-3 rounded-xl border border-transparent focus:border-blue-500 min-h-[100px] outline-none text-sm mb-4"></textarea>
+                        <div class="flex gap-2">
+                            <button onclick="saveJob()" class="bg-blue-600 text-white px-8 py-2 rounded-xl font-bold">確認發布</button>
+                            <button onclick="togglePostForm()" class="bg-slate-100 text-slate-400 px-8 py-2 rounded-xl font-bold">取消</button>
+                        </div>
+                    </section>
+
+                    <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                        <div id="employer-job-list" class="space-y-4"></div>
+                        <div id="applicant-list" class="space-y-4"></div>
+                    </div>
                 </div>
             </div>
         </div>
     </main>
 
+    <!-- 廣告新增 Modal -->
+    <div id="ad-form-modal" class="fixed inset-0 modal-overlay z-[200] hidden flex items-center justify-center p-6">
+        <div class="bg-white rounded-[32px] p-8 max-w-md w-full shadow-2xl">
+            <h3 class="text-lg font-black mb-4">新增廣告項目 (最多5個)</h3>
+            <div class="space-y-4">
+                <input type="file" id="ad-img-input" accept="image/*" class="w-full text-xs" onchange="previewAdImage(this)">
+                <div id="ad-preview-box" class="h-24 bg-slate-100 rounded-xl overflow-hidden hidden">
+                    <img id="ad-preview-img" src="" class="w-full h-full object-cover">
+                </div>
+                <input type="text" id="ad-link" placeholder="連結 URL (可留空)" class="w-full bg-slate-50 p-3 rounded-xl text-sm border border-slate-100 outline-none">
+                <div class="flex gap-2 pt-2">
+                    <button onclick="saveAd()" class="flex-grow bg-amber-600 text-white py-3 rounded-xl font-bold">保存廣告</button>
+                    <button onclick="closeAdForm()" class="px-6 bg-slate-100 text-slate-400 rounded-xl font-bold">取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 應徵 Modal -->
     <div id="apply-modal" class="fixed inset-0 modal-overlay z-[200] hidden flex items-center justify-center p-6">
-        <div class="bg-white rounded-[40px] p-10 max-w-lg w-full shadow-2xl">
-            <h3 class="text-2xl font-black text-slate-800 mb-1">提交申請</h3>
-            <p id="apply-job-name" class="text-blue-600 font-bold mb-8 text-sm uppercase"></p>
-            <div class="space-y-4">
-                <input type="text" id="apply-name" placeholder="您的姓名" class="w-full bg-slate-50 p-4 rounded-2xl outline-none border-2 border-transparent focus:border-blue-500">
-                <input type="text" id="apply-phone" placeholder="WhatsApp / 電話" class="w-full bg-slate-50 p-4 rounded-2xl outline-none border-2 border-transparent focus:border-blue-500">
-                <textarea id="apply-exp" placeholder="簡述您的經驗..." class="w-full bg-slate-50 p-4 rounded-2xl outline-none border-2 border-transparent focus:border-blue-500 h-32"></textarea>
-                <div class="flex gap-4 pt-4">
+        <div class="bg-white rounded-[32px] p-8 max-w-md w-full shadow-2xl">
+            <h3 class="text-xl font-black text-slate-800 mb-1">提交申請</h3>
+            <p id="apply-job-name" class="text-blue-600 font-bold mb-6 text-xs uppercase"></p>
+            <div class="space-y-3">
+                <input type="text" id="apply-name" placeholder="您的姓名" class="w-full bg-slate-50 p-3 rounded-xl border border-transparent focus:border-blue-500 outline-none text-sm">
+                <input type="text" id="apply-phone" placeholder="WhatsApp / 電話" class="w-full bg-slate-50 p-3 rounded-xl border border-transparent focus:border-blue-500 outline-none text-sm">
+                <textarea id="apply-exp" placeholder="簡述您的經驗..." class="w-full bg-slate-50 p-3 rounded-xl border border-transparent focus:border-blue-500 h-24 outline-none text-sm"></textarea>
+                <div class="flex gap-3 pt-4">
                     <button onclick="closeApplyModal()" class="flex-1 font-bold text-slate-400">取消</button>
-                    <button onclick="submitApplication()" class="flex-[2] bg-blue-600 text-white py-4 rounded-2xl font-black">發送申請</button>
+                    <button onclick="submitApplication()" class="flex-[2] bg-blue-600 text-white py-3 rounded-xl font-black">發送申請</button>
                 </div>
             </div>
         </div>
@@ -249,45 +255,65 @@
 
     <!-- 登入入口 -->
     <div id="login-modal" class="fixed inset-0 modal-overlay z-[100] hidden flex items-center justify-center p-6">
-        <div class="bg-white rounded-[40px] p-10 max-w-md w-full text-center">
-            <h3 class="text-3xl font-black mb-1 text-slate-800">歡迎登入</h3>
-            <p class="text-slate-400 mb-8 font-medium">請選擇您的身份進入系統</p>
-            <div class="space-y-4">
-                <button onclick="handleGoogleLogin('employer')" class="w-full bg-slate-50 flex items-center justify-between p-6 rounded-3xl border-2 border-transparent hover:border-blue-500 transition group text-left">
-                    <div>
-                        <div class="font-black text-slate-800">普通僱主</div>
-                        <div class="text-[10px] text-slate-400 uppercase tracking-widest font-bold">管理個人招聘</div>
-                    </div>
-                    <span class="text-2xl">🏢</span>
+        <div class="bg-white rounded-[32px] p-8 max-w-sm w-full text-center">
+            <h3 class="text-2xl font-black mb-8 text-slate-800">歡迎登入</h3>
+            <div class="space-y-3">
+                <button onclick="handleGoogleLogin('employer')" class="w-full bg-slate-50 flex items-center justify-between p-4 rounded-2xl border-2 border-transparent hover:border-blue-500 transition group text-left">
+                    <span class="font-black text-slate-800 text-sm">普通僱主</span>
+                    <span class="text-xl">🏢</span>
                 </button>
-                <button onclick="handleGoogleLogin('admin')" class="w-full bg-slate-50 flex items-center justify-between p-6 rounded-3xl border-2 border-transparent hover:border-amber-500 transition group text-left">
-                    <div>
-                        <div class="font-black text-slate-800 text-amber-600">系統管理員</div>
-                        <div class="text-[10px] text-slate-400 uppercase tracking-widest font-bold">全域管控權限</div>
-                    </div>
-                    <span class="text-2xl">🔑</span>
+                <button onclick="handleGoogleLogin('admin')" class="w-full bg-slate-50 flex items-center justify-between p-4 rounded-2xl border-2 border-transparent hover:border-amber-500 transition group text-left">
+                    <span class="font-black text-slate-800 text-sm text-amber-600">系統管理員</span>
+                    <span class="text-xl">🔑</span>
                 </button>
             </div>
-            <button onclick="document.getElementById('login-modal').classList.add('hidden')" class="mt-8 text-slate-300 font-bold text-sm">稍後再說</button>
+            <button onclick="document.getElementById('login-modal').classList.add('hidden')" class="mt-6 text-slate-300 font-bold text-xs uppercase tracking-widest">關閉</button>
         </div>
     </div>
 
     <script>
-        let jobs = [{id: 1, ownerId: "admin_001", title: "高級產品經理", company: "Tech Flow Ltd.", salary: "HK$ 45k-60k", location: "觀塘", desc: "負責數位產品開發與市場策略協調。", logo: "", expiryDate: Date.now() + 604800000, isPinned: true}];
+        // 初始模擬數據
+        let jobs = [
+            {id: 1, ownerId: "admin_001", title: "高級產品經理", company: "Tech Flow", salary: "HK$ 45k-60k", location: "觀塘", type: "全職", cat: "行政", desc: "產品策略與開發。", logo: "", isPinned: true},
+            {id: 2, ownerId: "admin_001", title: "前端工程師", company: "Web Sol.", salary: "HK$ 30k-40k", location: "中環", type: "全職", cat: "技術", desc: "React 開發。", logo: "", isPinned: false},
+            {id: 3, ownerId: "admin_001", title: "兼職店員", company: "Milk Tea", salary: "HK$ 65/hr", location: "旺角", type: "兼職", cat: "服務", desc: "飲品調配。", logo: "", isPinned: false},
+            {id: 4, ownerId: "admin_001", title: "UI/UX 設計師", company: "Creative", salary: "HK$ 25k-35k", location: "灣仔", type: "全職", cat: "設計", desc: "介面設計。", logo: "", isPinned: false},
+            {id: 5, ownerId: "admin_001", title: "銷售助理", company: "Retail King", salary: "HK$ 18k", location: "尖沙咀", type: "全職", cat: "銷售", desc: "協助銷售工作。", logo: "", isPinned: false},
+            {id: 6, ownerId: "admin_001", title: "IT 支援 (兼職)", company: "Global IT", salary: "HK$ 100/hr", location: "葵興", type: "兼職", cat: "技術", desc: "電腦維修支援。", logo: "", isPinned: false}
+        ];
+        
         let applicants = [];
-        let ads = []; // 廣告數據: {id, image, link}
+        let ads = [];
+        let activeFilters = { type: 'all', category: 'all' };
         let currentLogoBase64 = "";
         let currentAdBase64 = "";
         let adIndex = 0;
 
-        // 廣告管理邏輯
+        function setFilter(dim, value) {
+            activeFilters[dim] = value;
+            const prefix = dim === 'type' ? 'filter-type-' : 'filter-cat-';
+            const btns = document.querySelectorAll(`[id^="${prefix}"]`);
+            btns.forEach(btn => btn.classList.remove('active'));
+            
+            const activeBtnId = dim === 'type' ? (value === 'all' ? 'filter-type-all' : `filter-type-${value}`) : (value === 'all' ? 'filter-cat-all' : `filter-cat-${value}`);
+            const target = document.getElementById(activeBtnId);
+            if (target) target.classList.add('active');
+            renderJobs();
+        }
+
+        function resetFilters() {
+            activeFilters = { type: 'all', category: 'all' };
+            setFilter('type', 'all');
+            setFilter('category', 'all');
+        }
+
         function openAdForm() {
-            if (ads.length >= 5) return alert("最多只能發布 5 個廣告項目，請先刪除舊廣告");
-            document.getElementById('ad-form').classList.remove('hidden');
+            if (ads.length >= 5) return alert("最多只能發布 5 個廣告項目");
+            document.getElementById('ad-form-modal').classList.remove('hidden');
         }
 
         function closeAdForm() {
-            document.getElementById('ad-form').classList.add('hidden');
+            document.getElementById('ad-form-modal').classList.add('hidden');
             document.getElementById('ad-img-input').value = '';
             document.getElementById('ad-link').value = '';
             document.getElementById('ad-preview-box').classList.add('hidden');
@@ -308,10 +334,8 @@
         }
 
         function saveAd() {
-            const link = document.getElementById('ad-link').value;
-            if (!currentAdBase64) return alert("請上傳廣告圖片");
-            
-            ads.push({ id: Date.now(), image: currentAdBase64, link: link || "#" });
+            if (!currentAdBase64) return alert("請上傳圖片");
+            ads.push({ id: Date.now(), image: currentAdBase64, link: document.getElementById('ad-link').value || "#" });
             closeAdForm();
             renderAdManager();
             renderAdBanner();
@@ -326,17 +350,11 @@
         function renderAdManager() {
             const list = document.getElementById('ad-admin-list');
             if (!list || !window.isAdmin) return;
-            
             document.getElementById('add-ad-btn').disabled = ads.length >= 5;
-            document.getElementById('add-ad-btn').classList.toggle('opacity-50', ads.length >= 5);
-
             list.innerHTML = ads.map(ad => `
-                <div class="bg-white p-3 rounded-2xl border border-amber-200 shadow-sm relative overflow-hidden group">
-                    <img src="${ad.image}" class="w-full h-24 object-cover rounded-xl mb-2">
-                    <div class="flex justify-between items-center px-1">
-                        <span class="text-[10px] text-slate-400 truncate max-w-[120px] font-bold">${ad.link}</span>
-                        <button onclick="deleteAd(${ad.id})" class="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-width="2"></path></svg></button>
-                    </div>
+                <div class="bg-white p-2 rounded-xl border border-amber-200 flex items-center justify-between">
+                    <img src="${ad.image}" class="w-10 h-10 object-cover rounded-lg">
+                    <button onclick="deleteAd(${ad.id})" class="text-red-400 p-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" stroke-width="2"></path></svg></button>
                 </div>
             `).join('');
         }
@@ -345,203 +363,138 @@
             const banner = document.getElementById('ad-banner');
             const container = document.getElementById('ad-container');
             const dots = document.getElementById('ad-dots');
-            
-            if (ads.length === 0) {
-                banner.classList.add('hidden');
-                return;
-            }
-            
+            if (ads.length === 0) { banner.classList.add('hidden'); return; }
             banner.classList.remove('hidden');
-            container.innerHTML = ads.map((ad, idx) => `
-                <a href="${ad.link}" target="_blank" class="ad-slide w-full h-full ${idx === 0 ? 'active' : ''}">
-                    <img src="${ad.image}" class="w-full h-full object-cover">
-                </a>
-            `).join('');
-
-            dots.innerHTML = ads.map((_, idx) => `
-                <div class="w-2 h-2 rounded-full transition-all ${idx === 0 ? 'bg-white scale-125' : 'bg-white/40'}"></div>
-            `).join('');
-
+            container.innerHTML = ads.map((ad, idx) => `<a href="${ad.link}" target="_blank" class="ad-slide w-full h-full ${idx === 0 ? 'active' : ''}"><img src="${ad.image}" class="w-full h-full object-cover"></a>`).join('');
+            dots.innerHTML = ads.map((_, idx) => `<div class="w-1.5 h-1.5 rounded-full ${idx === 0 ? 'bg-white scale-125' : 'bg-white/40'}"></div>`).join('');
             adIndex = 0;
         }
 
-        // 廣告輪播計時器
         setInterval(() => {
             if (ads.length <= 1) return;
             const slides = document.querySelectorAll('.ad-slide');
             const dots = document.getElementById('ad-dots').children;
-            
-            slides[adIndex].classList.remove('active');
-            dots[adIndex].classList.remove('bg-white', 'scale-125');
-            dots[adIndex].classList.add('bg-white/40');
-            
-            adIndex = (adIndex + 1) % ads.length;
-            
-            slides[adIndex].classList.add('active');
-            dots[adIndex].classList.add('bg-white', 'scale-125');
-            dots[adIndex].classList.remove('bg-white/40');
+            if (slides[adIndex]) {
+                slides[adIndex].classList.remove('active');
+                dots[adIndex].classList.replace('bg-white', 'bg-white/40');
+                dots[adIndex].classList.remove('scale-125');
+                adIndex = (adIndex + 1) % ads.length;
+                slides[adIndex].classList.add('active');
+                dots[adIndex].classList.replace('bg-white/40', 'bg-white');
+                dots[adIndex].classList.add('scale-125');
+            }
         }, 5000);
 
-        // 原有職位管理邏輯 (保持隔離)
-        function togglePostForm() {
-            const form = document.getElementById('post-form');
-            form.classList.toggle('hidden');
-            if(form.classList.contains('hidden')) resetForm();
-        }
-
-        function previewLogo(input) {
-            const file = input.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    currentLogoBase64 = e.target.result;
-                    const preview = document.getElementById('logo-preview-img');
-                    preview.src = currentLogoBase64;
-                    preview.classList.remove('hidden');
-                    document.getElementById('logo-placeholder').classList.add('hidden');
-                };
-                reader.readAsDataURL(file);
-            }
-        }
-
-        function resetForm() {
-            document.getElementById('edit-job-id').value = '';
-            document.getElementById('job-title').value = '';
-            document.getElementById('job-company').value = '';
-            document.getElementById('job-salary').value = '';
-            document.getElementById('job-location').value = '';
-            document.getElementById('job-desc').value = '';
-            document.getElementById('logo-preview-img').classList.add('hidden');
-            document.getElementById('logo-placeholder').classList.remove('hidden');
-            currentLogoBase64 = "";
-        }
-
-        function saveJob() {
-            if (!window.currentUser) return;
-            const id = document.getElementById('edit-job-id').value;
-            const title = document.getElementById('job-title').value;
-            const company = document.getElementById('job-company').value;
-            const salary = document.getElementById('job-salary').value;
-            const location = document.getElementById('job-location').value;
-            const desc = document.getElementById('job-desc').value;
-
-            if (!title || !company) return alert("請輸入必填項目");
-
-            if (id) {
-                const idx = jobs.findIndex(j => j.id == id);
-                if (idx !== -1 && (jobs[idx].ownerId === window.currentUser.uid || window.isAdmin)) {
-                    jobs[idx] = { ...jobs[idx], title, company, salary, location, desc, logo: currentLogoBase64 || jobs[idx].logo };
-                }
-            } else {
-                jobs.unshift({
-                    id: Date.now(),
-                    ownerId: window.currentUser.uid,
-                    title, company, salary, location, desc,
-                    logo: currentLogoBase64,
-                    expiryDate: Date.now() + 604800000,
-                    isPinned: false
-                });
-            }
-            resetForm();
-            togglePostForm();
-            renderJobs();
-        }
-
         function renderJobs() {
-            const visitorList = document.getElementById('visitor-job-list');
-            const employerList = document.getElementById('employer-job-list');
-            if (!visitorList || !employerList) return;
+            const list = document.getElementById('visitor-job-list');
+            if (!list) return;
 
-            const sortedJobs = [...jobs].sort((a, b) => b.isPinned - a.isPinned || b.id - a.id);
-            document.getElementById('job-count').innerText = sortedJobs.length;
+            let filtered = jobs.filter(j => {
+                const typeMatch = activeFilters.type === 'all' || j.type === activeFilters.type;
+                const catMatch = activeFilters.category === 'all' || j.cat === activeFilters.category;
+                return typeMatch && catMatch;
+            });
 
-            visitorList.innerHTML = sortedJobs.map(job => `
-                <div class="job-card bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm flex flex-col h-full ${job.isPinned ? 'pinned' : ''}">
-                    <div class="flex items-center gap-4 mb-6">
-                        ${job.logo ? `<img src="${job.logo}" class="w-14 h-14 rounded-2xl object-cover">` : `<div class="w-14 h-14 bg-slate-50 flex items-center justify-center font-black text-slate-300 rounded-2xl">${job.company[0]}</div>`}
-                        <div class="overflow-hidden">
-                            <h3 class="font-black text-slate-800 leading-tight truncate">${job.title}</h3>
-                            <p class="text-blue-600 text-[10px] font-black uppercase mt-1 tracking-wider">${job.company}</p>
+            const sortedJobs = filtered.sort((a, b) => b.isPinned - a.isPinned || b.id - a.id).slice(0, 15);
+            document.getElementById('job-count').innerText = filtered.length;
+
+            list.innerHTML = sortedJobs.length === 0 ? `<div class="col-span-full py-12 text-center text-slate-300 font-bold">沒有符合搜尋條件的職位</div>` : sortedJobs.map(job => `
+                <div class="job-card bg-white p-4 rounded-3xl border border-slate-100 flex flex-col h-full ${job.isPinned ? 'pinned' : ''}">
+                    <div class="flex items-start justify-between mb-3">
+                        ${job.logo ? `<img src="${job.logo}" class="w-10 h-10 rounded-xl object-cover">` : `<div class="w-10 h-10 bg-slate-50 flex items-center justify-center font-black text-slate-300 rounded-xl text-xs">${job.company[0]}</div>`}
+                        <div class="flex flex-col items-end gap-1">
+                            <span class="text-[9px] font-black px-2 py-0.5 rounded-full ${job.type === '全職' ? 'bg-blue-50 text-blue-500' : 'bg-green-50 text-green-500'}">${job.type}</span>
+                            <span class="text-[9px] font-bold text-slate-400">${job.location}</span>
                         </div>
                     </div>
-                    <div class="flex gap-2 mb-6">
-                        <span class="text-[10px] font-bold bg-slate-50 text-slate-400 px-3 py-1 rounded-full">${job.location}</span>
-                        <span class="text-[10px] font-bold bg-green-50 text-green-600 px-3 py-1 rounded-full">${job.salary}</span>
+                    <div class="mb-3">
+                        <h3 class="text-xs font-black text-slate-800 leading-tight line-clamp-1 mb-0.5">${job.title}</h3>
+                        <p class="text-[9px] text-slate-400 font-bold uppercase truncate">${job.company}</p>
                     </div>
-                    <p class="text-slate-500 text-sm mb-8 flex-grow line-clamp-3">${job.desc}</p>
-                    <button onclick="openApplyModal(${job.id})" class="w-full py-4 bg-slate-900 text-white rounded-3xl font-black hover:bg-blue-600 transition shadow-lg">立即申請</button>
+                    <div class="mb-4">
+                        <span class="text-[10px] font-black text-blue-600">${job.salary}</span>
+                    </div>
+                    <button onclick="openApplyModal(${job.id})" class="mt-auto w-full py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black hover:bg-blue-600 transition">立即申請</button>
                 </div>
             `).join('');
 
-            if (window.currentUser) {
-                const myVisible = window.isAdmin ? sortedJobs : sortedJobs.filter(j => j.ownerId === window.currentUser.uid);
-                document.getElementById('my-job-count').innerText = myVisible.length;
-                employerList.innerHTML = myVisible.map(job => `
-                    <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
-                        <div>
-                            <h4 class="font-black text-slate-800">${job.title}</h4>
-                            <p class="text-[10px] text-slate-400 font-bold uppercase">${job.company} ${job.ownerId !== window.currentUser.uid ? '• [管理員檢視]' : ''}</p>
-                        </div>
-                        <div class="flex gap-2">
-                            ${window.isAdmin ? `<button onclick="togglePin(${job.id})" class="p-2 ${job.isPinned ? 'text-amber-500 bg-amber-50' : 'text-slate-300'} rounded-xl"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z"></path></svg></button>` : ''}
-                            <button onclick="editJob(${job.id})" class="p-2 text-blue-500 bg-blue-50 rounded-xl"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-width="2"></path></svg></button>
-                            <button onclick="deleteJob(${job.id})" class="p-2 text-red-500 bg-red-50 rounded-xl"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7" stroke-width="2"></path></svg></button>
-                        </div>
+            renderEmployerJobs();
+        }
+
+        function renderEmployerJobs() {
+            const list = document.getElementById('employer-job-list');
+            if (!list || !window.currentUser) return;
+            const myJobs = window.isAdmin ? jobs : jobs.filter(j => j.ownerId === window.currentUser.uid);
+            list.innerHTML = `<h3 class="font-black text-sm mb-4">管理我的職位 (${myJobs.length})</h3>` + myJobs.map(job => `
+                <div class="bg-white p-4 rounded-2xl border border-slate-100 flex items-center justify-between">
+                    <div>
+                        <div class="font-bold text-sm">${job.title}</div>
+                        <div class="text-[10px] text-slate-400 uppercase">${job.company} • ${job.cat}</div>
                     </div>
-                `).join('');
-            }
+                    <div class="flex gap-2">
+                        <button onclick="deleteJob(${job.id})" class="text-red-400 p-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
+                    </div>
+                </div>
+            `).join('');
         }
 
         function renderApplicants() {
             const list = document.getElementById('applicant-list');
             if(!list || !window.currentUser) return;
             const myApps = window.isAdmin ? applicants : applicants.filter(a => a.jobOwnerId === window.currentUser.uid);
-            list.innerHTML = myApps.length === 0 ? `<div class="text-center py-12 text-slate-300 text-sm font-bold border-2 border-dashed rounded-[40px]">暫無申請資料</div>` : myApps.map(a => `
-                <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-                    <div class="flex justify-between items-start mb-2">
-                        <span class="font-black text-slate-800">${a.name}</span>
-                        <span class="text-[10px] font-black text-slate-300">${a.time}</span>
-                    </div>
-                    <p class="text-[10px] text-blue-600 font-black mb-3">應徵：${a.jobTitle}</p>
-                    <div class="text-xs text-slate-500 mb-2">📞 ${a.phone}</div>
-                    <div class="bg-slate-50 p-3 rounded-2xl text-[10px] text-slate-500 italic">"${a.experience}"</div>
+            list.innerHTML = `<h3 class="font-black text-sm mb-4">收到申請 (${myApps.length})</h3>` + (myApps.length === 0 ? `<div class="p-6 text-center text-slate-300 text-xs">暫無資料</div>` : myApps.map(a => `
+                <div class="bg-white p-4 rounded-2xl border border-slate-100">
+                    <div class="flex justify-between font-bold text-xs mb-1"><span>${a.name}</span><span class="text-slate-300">${a.time}</span></div>
+                    <div class="text-[10px] text-blue-600 mb-2">應徵：${a.jobTitle} (📞 ${a.phone})</div>
+                    <div class="text-[10px] text-slate-500 italic bg-slate-50 p-2 rounded-lg">${a.experience || '無經驗描述'}</div>
                 </div>
-            `).join('');
+            `).join(''));
         }
 
-        window.editJob = (id) => {
-            const job = jobs.find(j => j.id === id);
-            if (job && (job.ownerId === window.currentUser.uid || window.isAdmin)) {
-                document.getElementById('edit-job-id').value = job.id;
-                document.getElementById('job-title').value = job.title;
-                document.getElementById('job-company').value = job.company;
-                document.getElementById('job-salary').value = job.salary;
-                document.getElementById('job-location').value = job.location;
-                document.getElementById('job-desc').value = job.desc;
-                document.getElementById('post-form').classList.remove('hidden');
-                window.scrollTo({ top: 400, behavior: 'smooth' });
+        function togglePostForm() { document.getElementById('post-form').classList.toggle('hidden'); }
+
+        function previewLogo(input) {
+            const file = input.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => { currentLogoBase64 = e.target.result; };
+                reader.readAsDataURL(file);
             }
-        };
+        }
+
+        function saveJob() {
+            const title = document.getElementById('job-title').value;
+            const company = document.getElementById('job-company').value;
+            const type = document.getElementById('job-type').value;
+            const cat = document.getElementById('job-cat').value;
+            const salary = document.getElementById('job-salary').value;
+            const location = document.getElementById('job-location').value;
+            const desc = document.getElementById('job-desc').value;
+
+            if (!title || !company) return alert("請填寫必填項");
+
+            jobs.unshift({
+                id: Date.now(),
+                ownerId: window.currentUser.uid,
+                title, company, type, cat, salary, location, desc,
+                logo: currentLogoBase64,
+                isPinned: false
+            });
+            
+            togglePostForm();
+            renderJobs();
+            // 重置 logo 預覽
+            currentLogoBase64 = "";
+            document.getElementById('job-logo-input').value = "";
+        }
 
         window.deleteJob = (id) => {
-            const job = jobs.find(j => j.id === id);
-            if (job && (job.ownerId === window.currentUser.uid || window.isAdmin)) {
-                if (confirm('確定刪除此職位？')) {
-                    jobs = jobs.filter(j => j.id !== id);
-                    renderJobs();
-                }
-            }
-        };
-
-        window.togglePin = (id) => {
-            if (!window.isAdmin) return;
-            const idx = jobs.findIndex(j => j.id === id);
-            if (idx !== -1) { jobs[idx].isPinned = !jobs[idx].isPinned; renderJobs(); }
+            jobs = jobs.filter(j => j.id !== id);
+            renderJobs();
         };
 
         window.openApplyModal = (id) => {
             const job = jobs.find(j => j.id === id);
-            if(!job) return;
             window.currentJobToApply = job;
             document.getElementById('apply-job-name').innerText = `${job.title} @ ${job.company}`;
             document.getElementById('apply-modal').classList.remove('hidden');
@@ -552,23 +505,20 @@
         window.submitApplication = () => {
             const name = document.getElementById('apply-name').value;
             const phone = document.getElementById('apply-phone').value;
-            const exp = document.getElementById('apply-exp').value;
-            if(!name || !phone) return alert("請填寫姓名與電話");
-            
+            if(!name || !phone) return alert("姓名與電話為必填");
             applicants.unshift({
-                id: Date.now(),
-                jobId: window.currentJobToApply.id,
-                jobOwnerId: window.currentJobToApply.ownerId,
+                name, phone, experience: document.getElementById('apply-exp').value,
                 jobTitle: window.currentJobToApply.title,
-                name, phone, experience: exp,
+                jobOwnerId: window.currentJobToApply.ownerId,
                 time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
             });
             renderApplicants();
             closeApplyModal();
-            alert("申請已送出！");
+            // 清空輸入
+            document.getElementById('apply-name').value = "";
+            document.getElementById('apply-phone').value = "";
+            document.getElementById('apply-exp').value = "";
         };
-
-        window.onload = () => { renderJobs(); renderAdBanner(); };
     </script>
 </body>
 </html>
