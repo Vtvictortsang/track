@@ -10,7 +10,8 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-      const firebaseConfig = {
+        // Firebase 配置預留位置
+const firebaseConfig = {
   apiKey: "AIzaSyBGQYGg1vet5xNc81xV-vLz3e6TBaPVPa0",
   authDomain: "jobportal123-25cae.firebaseapp.com",
   projectId: "jobportal123-25cae",
@@ -21,14 +22,58 @@
 };
 
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const provider = new GoogleAuthProvider();
-
-        // 管理員設置 (請修改為您的帳號)
         const ADMIN_EMAIL = "vt.victortsang@gmail.com"; 
+        let auth = null;
 
-        onAuthStateChanged(auth, (user) => {
+        // 安全初始化：檢查是否有有效的 API Key
+        const isFirebaseEnabled = firebaseConfig.apiKey && firebaseConfig.apiKey !== "";
+
+        if (isFirebaseEnabled) {
+            try {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                const provider = new GoogleAuthProvider();
+
+                onAuthStateChanged(auth, (user) => {
+                    updateAuthUI(user);
+                });
+
+                window.handleGoogleLogin = async () => {
+                    try {
+                        await signInWithPopup(auth, provider);
+                        document.getElementById('login-modal').classList.add('hidden');
+                    } catch (error) {
+                        console.error("登入失敗:", error);
+                    }
+                };
+
+                window.handleLogout = () => signOut(auth);
+            } catch (e) {
+                console.error("Firebase 初始化失敗，切換至演示模式", e);
+                setupDemoMode();
+            }
+        } else {
+            // 如果沒有 API Key，使用演示模式（Local Mode）
+            console.warn("未偵測到 Firebase 配置，系統將以『演示模式』執行。所有資料將暫存在瀏覽器內。");
+            setupDemoMode();
+        }
+
+        function setupDemoMode() {
+            // 模擬登入狀態，讓用戶可以直接進入控制台測試
+            window.isDemoMode = true;
+            window.handleGoogleLogin = () => {
+                const mockUser = { displayName: "測試管理員", email: ADMIN_EMAIL };
+                updateAuthUI(mockUser);
+                document.getElementById('login-modal').classList.add('hidden');
+            };
+            window.handleLogout = () => {
+                updateAuthUI(null);
+            };
+            // 初始狀態：未登入
+            setTimeout(() => updateAuthUI(null), 100);
+        }
+
+        function updateAuthUI(user) {
             const loginBtn = document.getElementById('login-btn');
             const userInfo = document.getElementById('user-info');
             const userName = document.getElementById('user-name');
@@ -41,7 +86,7 @@
                 if (userName) userName.innerText = user.displayName;
                 if (employerZone) employerZone.classList.remove('hidden');
                 
-                window.isAdmin = (user.email === ADMIN_EMAIL);
+                window.isAdmin = (user.email === ADMIN_EMAIL || window.isDemoMode);
                 if (adminBadge) adminBadge.classList.toggle('hidden', !window.isAdmin);
                 
                 renderJobs(); 
@@ -52,19 +97,7 @@
                 if (employerZone) employerZone.classList.add('hidden');
                 window.isAdmin = false;
             }
-        });
-
-        window.handleGoogleLogin = async () => {
-            try {
-                await signInWithPopup(auth, provider);
-                const modal = document.getElementById('login-modal');
-                if (modal) modal.classList.add('hidden');
-            } catch (error) {
-                console.error("登入失敗:", error);
-            }
-        };
-
-        window.handleLogout = () => signOut(auth);
+        }
     </script>
 
     <style>
@@ -126,7 +159,7 @@
                             <img id="logo-preview-img" src="" class="hidden w-full h-full object-cover">
                             <div id="logo-placeholder" class="text-center p-4">
                                 <svg class="w-10 h-10 text-slate-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
-                                <span class="text-xs font-bold text-slate-400">點擊上傳 (建議 < 200KB)</span>
+                                <span class="text-xs font-bold text-slate-400">點擊上傳</span>
                             </div>
                         </div>
                         <input type="file" id="job-logo-input" accept="image/*" class="hidden" onchange="previewLogo(this)">
@@ -157,6 +190,34 @@
         </div>
     </main>
 
+    <!-- 應徵彈窗 -->
+    <div id="apply-modal" class="fixed inset-0 modal-overlay z-[200] hidden flex items-center justify-center p-6">
+        <div class="bg-white rounded-[40px] p-10 max-w-lg w-full shadow-2xl animate-fadeIn">
+            <h3 class="text-2xl font-black mb-1 text-slate-800">提交應徵申請</h3>
+            <p id="apply-job-name" class="text-blue-600 font-bold mb-8 text-sm uppercase tracking-wide"></p>
+            
+            <div class="space-y-5">
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2 mb-1 block">真實姓名</label>
+                    <input type="text" id="apply-name" placeholder="例如：陳大文" class="w-full bg-slate-50 p-4 rounded-2xl outline-none border-2 border-transparent focus:border-blue-500 transition text-slate-800 font-bold">
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2 mb-1 block">WhatsApp / 電話</label>
+                    <input type="text" id="apply-phone" placeholder="例如：91234567" class="w-full bg-slate-50 p-4 rounded-2xl outline-none border-2 border-transparent focus:border-blue-500 transition text-slate-800 font-bold">
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2 mb-1 block">工作經驗概要</label>
+                    <textarea id="apply-exp" placeholder="簡述過去的工作經歷..." class="w-full bg-slate-50 p-4 rounded-2xl outline-none border-2 border-transparent focus:border-blue-500 transition text-slate-800 font-medium min-h-[120px]"></textarea>
+                </div>
+                
+                <div class="pt-4 flex gap-4">
+                    <button onclick="closeApplyModal()" class="flex-1 py-4 text-slate-400 font-bold hover:bg-slate-50 rounded-2xl transition">取消</button>
+                    <button onclick="submitApplication()" class="flex-[2] py-4 bg-blue-600 text-white rounded-2xl font-black hover:bg-blue-700 transition shadow-lg shadow-blue-100">確認送出</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 管理員操作：延長時間彈窗 -->
     <div id="admin-action-modal" class="fixed inset-0 modal-overlay z-[150] hidden flex items-center justify-center p-6">
         <div class="bg-white rounded-[40px] p-10 max-w-sm w-full shadow-2xl">
@@ -181,23 +242,28 @@
             </div>
             <button onclick="handleGoogleLogin()" class="w-full flex items-center justify-center gap-4 bg-slate-900 text-white py-5 rounded-2xl hover:bg-blue-600 transition font-black">
                 <img src="https://www.google.com/favicon.ico" class="w-6 h-6 invert">
-                <span>Google 帳號登入</span>
+                <span>點擊登入入口</span>
             </button>
             <button onclick="document.getElementById('login-modal').classList.add('hidden')" class="mt-6 text-slate-300 font-bold text-sm">稍後再說</button>
         </div>
     </div>
 
     <script>
-        let jobs = [];
+        // 核心資料
+        let jobs = [
+            {
+                id: 1, title: "前端工程師", company: "科技大廠", salary: "HK$ 30,000 - 45,000", location: "九龍", desc: "我們正在尋找熱衷於 React 或 Vue 的開發者，負責構建高性能 Web 應用。", logo: "", expiryDate: Date.now() + 604800000, isPinned: true
+            }
+        ];
+        let applicants = [];
         let currentLogoBase64 = "";
         let currentAdminJobId = null;
-        let applicants = [];
+        let currentApplyJobId = null;
 
         function setLoginType(type) {
             const isEmp = type === 'employer';
             const empBtn = document.getElementById('type-employer');
             const adminBtn = document.getElementById('type-admin');
-            
             if (empBtn) empBtn.className = isEmp ? 'py-4 rounded-2xl border-2 border-blue-500 bg-blue-50 text-blue-600 font-black transition' : 'py-4 rounded-2xl border-2 border-transparent bg-slate-50 text-slate-400 font-black transition';
             if (adminBtn) adminBtn.className = !isEmp ? 'py-4 rounded-2xl border-2 border-amber-500 bg-amber-50 text-amber-600 font-black transition' : 'py-4 rounded-2xl border-2 border-transparent bg-slate-50 text-slate-400 font-black transition';
         }
@@ -206,9 +272,7 @@
             const form = document.getElementById('post-form');
             if (form) {
                 form.classList.toggle('hidden'); 
-                if(form.classList.contains('hidden')) {
-                    resetForm();
-                }
+                if(form.classList.contains('hidden')) resetForm();
             }
         }
 
@@ -220,10 +284,7 @@
                     currentLogoBase64 = e.target.result;
                     const preview = document.getElementById('logo-preview-img');
                     const placeholder = document.getElementById('logo-placeholder');
-                    if (preview) {
-                        preview.src = currentLogoBase64;
-                        preview.classList.remove('hidden');
-                    }
+                    if (preview) { preview.src = currentLogoBase64; preview.classList.remove('hidden'); }
                     if (placeholder) placeholder.classList.add('hidden');
                 };
                 reader.readAsDataURL(file);
@@ -270,21 +331,64 @@
                     isPinned: false
                 });
             }
-            
             resetForm();
             togglePostForm();
             renderJobs();
         }
 
+        window.openApplyModal = (jobId) => {
+            const job = jobs.find(j => j.id === jobId);
+            if (!job) return;
+            currentApplyJobId = jobId;
+            document.getElementById('apply-job-name').innerText = `職位：${job.title} | ${job.company}`;
+            document.getElementById('apply-modal').classList.remove('hidden');
+        };
+
+        window.closeApplyModal = () => {
+            document.getElementById('apply-modal').classList.add('hidden');
+            document.getElementById('apply-name').value = '';
+            document.getElementById('apply-phone').value = '';
+            document.getElementById('apply-exp').value = '';
+        };
+
+        window.submitApplication = () => {
+            const name = document.getElementById('apply-name').value;
+            const phone = document.getElementById('apply-phone').value;
+            const exp = document.getElementById('apply-exp').value;
+            const job = jobs.find(j => j.id === currentApplyJobId);
+
+            if (!name || !phone || !exp) {
+                alert('請完整填寫所有欄位');
+                return;
+            }
+
+            const newApplicant = {
+                id: Date.now(),
+                name: name,
+                phone: phone,
+                experience: exp,
+                job: job ? job.title : '未知職位',
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
+
+            applicants.unshift(newApplicant);
+            renderApplicants();
+            closeApplyModal();
+            
+            const successMsg = document.createElement('div');
+            successMsg.className = "fixed bottom-10 left-1/2 -translate-x-1/2 bg-green-500 text-white px-8 py-4 rounded-2xl font-black shadow-2xl z-[300] animate-fadeIn";
+            successMsg.innerText = "🎉 應徵申請已送出！";
+            document.body.appendChild(successMsg);
+            setTimeout(() => successMsg.remove(), 3000);
+        };
+
         window.openAdminAction = (jobId) => {
             currentAdminJobId = jobId;
-            const modal = document.getElementById('admin-action-modal');
-            if (modal) modal.classList.remove('hidden');
+            document.getElementById('admin-action-modal').classList.remove('hidden');
         };
 
         window.closeAdminModal = () => {
-            const modal = document.getElementById('admin-action-modal');
-            if (modal) modal.classList.add('hidden');
+            document.getElementById('admin-action-modal').classList.add('hidden');
         };
 
         window.confirmExtend = () => {
@@ -346,7 +450,6 @@
             if (!visitorList || !employerList) return;
 
             const now = Date.now();
-            
             const sortedJobs = [...jobs].sort((a, b) => {
                 if (a.isPinned !== b.isPinned) return b.isPinned ? -1 : 1;
                 return b.id - a.id;
@@ -370,7 +473,7 @@
                         <span class="text-blue-500">${job.salary}</span>
                     </div>
                     <p class="text-slate-500 text-sm mb-8 flex-grow line-clamp-4 leading-relaxed">${job.desc}</p>
-                    <button class="w-full py-4 bg-slate-900 text-white rounded-2xl font-black hover:bg-blue-600 transition shadow-lg shadow-slate-200">立即應徵</button>
+                    <button onclick="openApplyModal(${job.id})" class="w-full py-4 bg-slate-900 text-white rounded-2xl font-black hover:bg-blue-600 transition shadow-lg shadow-slate-200">立即應徵</button>
                 </div>
             `).join('');
 
@@ -393,16 +496,16 @@
                             <button onclick="togglePin(${job.id})" class="p-2 rounded-xl ${job.isPinned ? 'bg-amber-100 text-amber-600' : 'bg-slate-50 text-slate-400'} hover:bg-amber-200 transition" title="置頂">
                                 <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z"></path></svg>
                             </button>
-                            <button onclick="openAdminAction(${job.id})" class="p-2 bg-slate-900 text-white rounded-xl hover:bg-blue-600 transition" title="延長有效期">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            </button>
-                            <button onclick="editJob(${job.id})" class="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-                            </button>
-                            <button onclick="deleteJob(${job.id})" class="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                            </button>
                         ` : ''}
+                        <button onclick="openAdminAction(${job.id})" class="p-2 bg-slate-900 text-white rounded-xl hover:bg-blue-600 transition" title="延長有效期">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </button>
+                        <button onclick="editJob(${job.id})" class="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                        </button>
+                        <button onclick="deleteJob(${job.id})" class="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
                     </div>
                 </div>
             `; }).join('');
@@ -416,12 +519,30 @@
                 return;
             }
             list.innerHTML = applicants.map(a => `
-                <div class="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm animate-fadeIn">
-                    <div class="flex justify-between mb-2"><span class="font-black text-slate-800">${a.name}</span><span class="text-[10px] font-black text-slate-300 uppercase">${a.time}</span></div>
-                    <div class="text-[10px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full w-fit mb-4">應徵：${a.job}</div>
-                    <div class="text-sm font-bold text-slate-500">📞 ${a.phone}</div>
+                <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm animate-fadeIn">
+                    <div class="flex justify-between items-start mb-3">
+                        <div>
+                            <span class="font-black text-slate-800 text-base">${a.name}</span>
+                            <p class="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md mt-1">應徵：${a.job}</p>
+                        </div>
+                        <span class="text-[10px] font-black text-slate-300 uppercase">${a.time}</span>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="text-sm font-bold text-slate-700 flex items-center gap-2">
+                            <span class="bg-slate-100 p-1.5 rounded-lg text-slate-400">📞</span> ${a.phone}
+                        </div>
+                        <div class="bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                            <label class="text-[9px] font-black text-slate-400 uppercase mb-1 block">工作經驗</label>
+                            <p class="text-xs text-slate-600 leading-relaxed font-medium">${a.experience}</p>
+                        </div>
+                    </div>
                 </div>
             `).join('');
+        }
+
+        window.onload = () => {
+            renderJobs();
+            renderApplicants();
         }
     </script>
 </body>
